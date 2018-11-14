@@ -1,4 +1,4 @@
-#include "Motor/MyMotor.h"
+#include "MyMotor.h"
 
 Pins pins1(2, 3, 4, 5);
 MyMotor motor1(pins1, 200);
@@ -8,11 +8,12 @@ MyMotor motor2(pins2, 200);
 
 void setup()
 {
+  // serial
   Serial.begin(9600);
 
+  // motors
   motor1.setSpeed(1);
   motor2.setStepMode(StepMode::FULL_STEP);
-  
   motor2.setSpeed(3);
   motor2.setStepMode(StepMode::FULL_STEP);
 }

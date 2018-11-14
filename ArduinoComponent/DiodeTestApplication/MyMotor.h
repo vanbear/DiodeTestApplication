@@ -1,3 +1,5 @@
+
+// ======================= DEFS
 enum class StepMode
 {
     FULL_STEP = 0,
@@ -16,6 +18,8 @@ struct Pins
     int MS1;
     int MS2;
 };
+
+// ======================= MyMotor declaration
 
 class MyMotor
 {
@@ -38,6 +42,8 @@ private:
     void initPinModes();
     bool isPinSet(int pin) const { return (pin > -1); }
 };
+
+// ======================= MyMotor definition
 
 MyMotor::MyMotor(Pins pins, unsigned int res, bool dir, StepMode mode) : m_pins(pins), m_resolution(res)
 {
@@ -113,7 +119,6 @@ void MyMotor::setStepMode(StepMode stepMode)
 
 void MyMotor::doStep()
 {
-    // Serial.println(m_speed);
     digitalWrite(m_pins.step,HIGH);
     delay(m_speed);
     digitalWrite(m_pins.step,LOW);
