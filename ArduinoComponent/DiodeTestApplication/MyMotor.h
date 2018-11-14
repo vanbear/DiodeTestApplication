@@ -127,7 +127,7 @@ void MyMotor::doStep()
 
 void MyMotor::doNSteps(int n)
 {
-    for (int i = 0; i <= n; i++)
+    for (int i = 0; i < n; i++)
     {
         doStep();
     }
