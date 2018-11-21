@@ -2,23 +2,24 @@ namespace global
 {
     namespace pins
     {
-        constexpr auto HALL_SENSOR_A = 6;
-        constexpr auto HALL_SENSOR_B = 7;
+        constexpr int HALL_SENSOR_A = 6;
+        constexpr int HALL_SENSOR_B = 7;
         constexpr int LIGHT_SENSOR_MAIN = A0;
         constexpr int LIGHT_SENSOR_REF = A1;
+        constexpr int LED = 13;
     }
 
     namespace steps
     {
-        constexpr auto MOTOR_BASE_MAX = 200;
-        constexpr auto MOTOR_DIODE_MAX = 2048;
+        constexpr int MOTOR_BASE_MAX = 200;
+        constexpr int MOTOR_DIODE_MAX = 2048;
 
-        constexpr auto MOTOR_BASE_MEASURE_STEP = 8;
-        constexpr auto MOTOR_DIODE_MEASURE_STEP = 64;
+        constexpr int MOTOR_BASE_MEASURE_STEP = 8;
+        constexpr int MOTOR_DIODE_MEASURE_STEP = 64;
     }
 
     namespace time
     {
-        constexpr auto DELAY_BETW_MEASURE_STEPS = 100; 
+        constexpr int DELAY_BETW_MEASURE_STEPS = 100; 
     }
 }

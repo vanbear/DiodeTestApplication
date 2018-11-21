@@ -8,6 +8,12 @@ enum class StepMode
     EIGHT_STEP
 };
 
+enum class StepDirection : bool
+{
+    CLOCKWISE = false,
+    COUNTER_CLOCKWISE = true
+};
+
 struct Pins
 {
     Pins(int step, int dir, int MS1 = -1, int MS2 = -1) :
@@ -24,18 +30,19 @@ struct Pins
 class MyMotor
 {
 public:
-    MyMotor(Pins, unsigned int resolution, bool dir = false, 
+    MyMotor(Pins, unsigned int resolution, StepDirection dir = StepDirection::CLOCKWISE, 
         StepMode mode = StepMode::FULL_STEP);
     void doStep();
     void doNSteps(int n);
-    void changeDirection(bool dir);
+    void changeDirection(StepDirection dir);
     void toggleDirection();
-    void setSpeed(float spd);
+    void setDelay(float spd);
     void setStepMode(StepMode);
+    StepDirection getCurrentDirection() const;
 
 private:
     unsigned int m_resolution;
-    bool m_direction;
+    StepDirection m_direction;
     Pins m_pins;
     float m_speed = 100;
 
@@ -45,11 +52,11 @@ private:
 
 // ======================= MyMotor definition
 
-MyMotor::MyMotor(Pins pins, unsigned int res, bool dir, StepMode mode) : m_pins(pins), m_resolution(res)
+MyMotor::MyMotor(Pins pins, unsigned int res, StepDirection dir, StepMode mode) : m_pins(pins), m_resolution(res)
 {
     initPinModes();
     changeDirection(dir);
-    setSpeed(m_speed);
+    setDelay(m_speed);
     digitalWrite(m_pins.step, LOW);
 }
 
@@ -67,19 +74,26 @@ void MyMotor::initPinModes()
     }
 }
     
-void MyMotor::changeDirection(bool dir)
+void MyMotor::changeDirection(StepDirection dir)
 {
     m_direction = dir;
-    digitalWrite(m_pins.direction, (m_direction ? HIGH : LOW));
+    digitalWrite(m_pins.direction, (static_cast<bool>(m_direction) ? HIGH : LOW));
 }
 
 void MyMotor::toggleDirection()
 {
-    m_direction = !m_direction;
+    if (m_direction == StepDirection::CLOCKWISE)
+    {
+        m_direction = StepDirection::COUNTER_CLOCKWISE;
+    }
+    else
+    {
+        m_direction = StepDirection::CLOCKWISE;
+    }
     changeDirection(m_direction);
 }
 
-void MyMotor::setSpeed(float spd)
+void MyMotor::setDelay(float spd)
 {
     m_speed = spd;
 }
@@ -131,4 +145,9 @@ void MyMotor::doNSteps(int n)
     {
         doStep();
     }
+}
+
+StepDirection MyMotor::getCurrentDirection() const
+{
+    return m_direction;
 }
