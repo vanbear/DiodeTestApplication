@@ -1,4 +1,5 @@
 #include "MyMotor.h"
+#include "DataTransferService.h"
 #include "GlobalDefs.h"
 
 Pins pins1(2, 3, 4, 5);
@@ -7,18 +8,17 @@ MyMotor motorDiode(pins1, 200);
 Pins pins2(8, 9, 10, 11);
 MyMotor motorBase(pins2, 200);
 
+DataTransferService dataService;
+
 void setup()
 {
-  // serial
-  Serial.begin(9600);
-
   // LED
-  pinMode(global::pins::LED, OUTPUT);
-  digitalWrite(global::pins::LED, LOW);
+  pinMode(gd::pins::LED, OUTPUT);
+  digitalWrite(gd::pins::LED, LOW);
 
   // hall sensor
-  pinMode(global::pins::HALL_SENSOR_A, INPUT);
-  pinMode(global::pins::HALL_SENSOR_B, INPUT);
+  pinMode(gd::pins::HALL_SENSOR_A, INPUT);
+  pinMode(gd::pins::HALL_SENSOR_B, INPUT);
 
   // motors
   motorDiode.setDelay(1);
@@ -31,7 +31,7 @@ void setup()
   }
   else
   {
-    Serial.println("Measure cancelled.");
+    dataService.sendMessage(data::MEASURE_START, data::FALSE_TEXT_VALUE);
   }
 }
 
@@ -47,21 +47,20 @@ bool calibrate()
   motorBase.setDelay(8);
   motorBase.changeDirection(StepDirection::COUNTER_CLOCKWISE);
   
-  Serial.println("Calibration start.");
-  while ( (digitalRead(global::pins::HALL_SENSOR_A) == HIGH) && (digitalRead(global::pins::HALL_SENSOR_B) == HIGH) )
+  dataService.sendMessage(data::CALIBRATION_START, data::TRUE_TEXT_VALUE);
+  while ( (digitalRead(gd::pins::HALL_SENSOR_A) == HIGH) && (digitalRead(gd::pins::HALL_SENSOR_B) == HIGH) )
   {
     motorBase.doNSteps(stepsPerRevolution);
     stepsDone += stepsPerRevolution;
-    if (stepsDone >= global::steps::MOTOR_BASE_MAX)
+    if (stepsDone >= gd::steps::MOTOR_BASE_MAX)
     {
-      Serial.println("Calibration failed - Hall sensor didn't activate after full rotation, returning to starting position.");
+      dataService.sendError("Calibration failed - Hall sensor didn't activate after full rotation, returning to starting position.");
       motorBase.setDelay(8);
       motorBase.toggleDirection();
       motorBase.doNSteps(stepsDone);
       return false;
     }
   }
-  Serial.println("Calibration succesful.");
   motorBase.doStep(); // last additional step
   delay(2000);
   return true;
@@ -69,29 +68,28 @@ bool calibrate()
 
 int getLightDensity()
 {
-  int valueMain = analogRead(global::pins::LIGHT_SENSOR_MAIN);
-  int valueRef = analogRead(global::pins::LIGHT_SENSOR_REF);
+  int valueMain = analogRead(gd::pins::LIGHT_SENSOR_MAIN);
+  int valueRef = analogRead(gd::pins::LIGHT_SENSOR_REF);
   return map(valueMain - valueRef, 0, 1023, 0, 255);
 }
 
 void startMeasurement()
 {
-  Serial.println("Measure start.");
-  digitalWrite(global::pins::LED, HIGH);
+  digitalWrite(gd::pins::LED, HIGH);
 
-  if ( digitalRead(global::pins::HALL_SENSOR_A) == LOW )
+  if ( digitalRead(gd::pins::HALL_SENSOR_A) == LOW )
   {
-    Serial.println("Sensor A - direction CW.");
+    dataService.sendMessage(data::MEASURE_START, data::HALL_A);
     motorBase.changeDirection(StepDirection::CLOCKWISE);
   }
-  else if ( digitalRead(global::pins::HALL_SENSOR_B) == LOW )
+  else if ( digitalRead(gd::pins::HALL_SENSOR_B) == LOW )
   {
-    Serial.println("Sensor B - direction CCW.");
+    dataService.sendMessage(data::MEASURE_START, data::HALL_B);
     motorBase.changeDirection(StepDirection::COUNTER_CLOCKWISE);
   }
   else
   {
-    Serial.println("Cannot determine base motor direction.");
+    dataService.sendError("Cannot determine base motor direction.");
     return;
   }
   
@@ -101,40 +99,30 @@ void startMeasurement()
   int counterDiode = 0;
   motorBase.setStepMode(StepMode::HALF_STEP);
 
-  while (stepsDone_Base < global::steps::MOTOR_BASE_MAX)
+  while (stepsDone_Base < gd::steps::MOTOR_BASE_MAX)
   {
     stepsDone_Diode = 0;
     counterDiode = 0;
 
-    while (stepsDone_Diode < global::steps::MOTOR_DIODE_MAX)
+    while (stepsDone_Diode < gd::steps::MOTOR_DIODE_MAX)
     {
-      sendData(counterBase, counterDiode, motorBase.getCurrentDirection(), motorDiode.getCurrentDirection(), getLightDensity());
+      dataService.sendData(counterBase, counterDiode, motorBase.getCurrentDirection(), motorDiode.getCurrentDirection(), getLightDensity());
 
-      motorDiode.doNSteps(global::steps::MOTOR_DIODE_MEASURE_STEP);
-      stepsDone_Diode += global::steps::MOTOR_DIODE_MEASURE_STEP;
+      motorDiode.doNSteps(gd::steps::MOTOR_DIODE_MEASURE_STEP);
+      stepsDone_Diode += gd::steps::MOTOR_DIODE_MEASURE_STEP;
 
       counterDiode++;
-      delay(global::time::DELAY_BETW_MEASURE_STEPS);
+      delay(gd::time::DELAY_BETWEEN_MEASURE_STEPS);
     }
 
     counterBase++;
     motorDiode.toggleDirection();
-    motorBase.doNSteps(global::steps::MOTOR_BASE_MEASURE_STEP);
-    stepsDone_Base += global::steps::MOTOR_BASE_MEASURE_STEP;
+    motorBase.doNSteps(gd::steps::MOTOR_BASE_MEASURE_STEP);
+    stepsDone_Base += gd::steps::MOTOR_BASE_MEASURE_STEP;
   }
 
-  sendData(counterBase, counterDiode, motorBase.getCurrentDirection(), motorDiode.getCurrentDirection(), getLightDensity());
+  dataService.sendData(counterBase, counterDiode, motorBase.getCurrentDirection(), motorDiode.getCurrentDirection(), getLightDensity());
 
   delay(1000);
-  digitalWrite(global::pins::LED, LOW);
-  Serial.println("Measure end.");
-}
-
-void sendData(int alpha, int beta, StepDirection dirA, StepDirection dirB, int value)
-{
-  Serial.print(" Send data Alpha: "); Serial.print(alpha);
-  Serial.print(" | Beta: "); Serial.print(beta);
-  Serial.print(" | dirA: "); Serial.print(static_cast<bool>(dirA));
-  Serial.print(" | dirB: "); Serial.print(static_cast<bool>(dirB));
-  Serial.print(" | value: "); Serial.println(value);
+  digitalWrite(gd::pins::LED, LOW);
 }

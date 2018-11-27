@@ -1,4 +1,4 @@
-namespace global
+namespace gd
 {
     namespace pins
     {
@@ -20,6 +20,6 @@ namespace global
 
     namespace time
     {
-        constexpr int DELAY_BETW_MEASURE_STEPS = 100; 
+        constexpr int DELAY_BETWEEN_MEASURE_STEPS = 100; 
     }
 }
