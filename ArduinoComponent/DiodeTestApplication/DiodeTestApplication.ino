@@ -12,6 +12,8 @@ DataTransferService dataService;
 
 void setup()
 {
+  Serial.begin(9600);
+
   // LED
   pinMode(gd::pins::LED, OUTPUT);
   digitalWrite(gd::pins::LED, LOW);
@@ -62,7 +64,6 @@ bool calibrate()
     }
   }
   motorBase.doStep(); // last additional step
-  delay(2000);
   return true;
 }
 
@@ -76,15 +77,18 @@ int getLightDensity()
 void startMeasurement()
 {
   digitalWrite(gd::pins::LED, HIGH);
+  delay(2000);
+  String initMessage =  data::SEMI_COLON + String(gd::steps::MOTOR_BASE_MAX/gd::steps::MOTOR_BASE_MEASURE_STEP) + data::SEMI_COLON
+    + String(gd::steps::MOTOR_DIODE_MAX/gd::steps::MOTOR_DIODE_MEASURE_STEP);
 
   if ( digitalRead(gd::pins::HALL_SENSOR_A) == LOW )
   {
-    dataService.sendMessage(data::MEASURE_START, data::HALL_A);
+    dataService.sendMessage(data::MEASURE_START, data::HALL_A + initMessage);
     motorBase.changeDirection(StepDirection::CLOCKWISE);
   }
   else if ( digitalRead(gd::pins::HALL_SENSOR_B) == LOW )
   {
-    dataService.sendMessage(data::MEASURE_START, data::HALL_B);
+    dataService.sendMessage(data::MEASURE_START, data::HALL_B + initMessage);
     motorBase.changeDirection(StepDirection::COUNTER_CLOCKWISE);
   }
   else
@@ -121,8 +125,11 @@ void startMeasurement()
     stepsDone_Base += gd::steps::MOTOR_BASE_MEASURE_STEP;
   }
 
-  dataService.sendData(counterBase, counterDiode, motorBase.getCurrentDirection(), motorDiode.getCurrentDirection(), getLightDensity());
+  dataService.sendMessage(data::MEASURE_END, data::TRUE_TEXT_VALUE);
+  motorDiode.doNSteps(gd::steps::MOTOR_DIODE_MAX);
+  motorBase.toggleDirection();
+  motorBase.doNSteps(gd::steps::MOTOR_BASE_MAX/2);
 
-  delay(1000);
+  delay(2000);
   digitalWrite(gd::pins::LED, LOW);
 }
