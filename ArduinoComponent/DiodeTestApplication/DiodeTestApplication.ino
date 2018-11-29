@@ -25,6 +25,7 @@ void setup()
   // motors
   motorDiode.setDelay(1);
   motorBase.setDelay(3);
+  pinMode(gd::pins::MOTOR_SLEEP, OUTPUT);
 
   // program start
   if (calibrate())
@@ -33,8 +34,9 @@ void setup()
   }
   else
   {
-    dataService.sendMessage(data::MEASURE_START, data::FALSE_TEXT_VALUE);
+    sleepMotors();
   }
+  sleepMotors();
 }
 
 void loop()
@@ -44,6 +46,8 @@ void loop()
 
 bool calibrate()
 {
+  activateMotors();
+
   int stepsDone = 0;
   const int stepsPerRevolution = 1;
   motorBase.setDelay(8);
@@ -76,11 +80,13 @@ int getLightDensity()
 
 void startMeasurement()
 {
+  activateMotors();
   digitalWrite(gd::pins::LED, HIGH);
   delay(2000);
   String initMessage =  data::SEMI_COLON + String(gd::steps::MOTOR_BASE_MAX/gd::steps::MOTOR_BASE_MEASURE_STEP) + data::SEMI_COLON
     + String(gd::steps::MOTOR_DIODE_MAX/gd::steps::MOTOR_DIODE_MEASURE_STEP);
 
+  // determine starting point
   if ( digitalRead(gd::pins::HALL_SENSOR_A) == LOW )
   {
     dataService.sendMessage(data::MEASURE_START, data::HALL_A + initMessage);
@@ -97,6 +103,7 @@ void startMeasurement()
     return;
   }
   
+  // start measurement
   int stepsDone_Base = 0;
   int stepsDone_Diode = 0;
   int counterBase = 0;

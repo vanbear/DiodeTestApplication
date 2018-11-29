@@ -1,3 +1,5 @@
+#pragma once
+
 #include "DataParameters.h"
 
 using namespace data;

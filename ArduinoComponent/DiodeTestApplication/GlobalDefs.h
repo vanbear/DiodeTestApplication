@@ -1,3 +1,5 @@
+#pragma once
+
 namespace gd
 {
     namespace pins
@@ -7,6 +9,7 @@ namespace gd
         constexpr int LIGHT_SENSOR_MAIN = A0;
         constexpr int LIGHT_SENSOR_REF = A1;
         constexpr int LED = 13;
+        constexpr int MOTOR_SLEEP = 12; 
     }
 
     namespace steps

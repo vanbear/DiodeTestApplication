@@ -1,3 +1,5 @@
+#pragma once
+
 namespace data
 {
     const String CALIBRATION_START = "CalibrationStart";

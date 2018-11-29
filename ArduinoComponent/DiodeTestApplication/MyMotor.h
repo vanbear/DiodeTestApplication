@@ -1,3 +1,6 @@
+#pragma once
+
+#include "GlobalDefs.h"
 
 // ======================= DEFS
 enum class StepMode
@@ -24,6 +27,16 @@ struct Pins
     int MS1;
     int MS2;
 };
+
+void sleepMotors()
+{
+    digitalWrite(gd::pins::MOTOR_SLEEP, LOW);
+}
+
+void activateMotors()
+{
+    digitalWrite(gd::pins::MOTOR_SLEEP, HIGH);
+}
 
 // ======================= MyMotor declaration
 
