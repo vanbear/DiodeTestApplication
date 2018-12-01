@@ -78,7 +78,7 @@
        </spacer>
       </item>
       <item>
-       <widget class="QTableView" name="dataTable">
+       <widget class="QTableWidget" name="dataTable">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
           <horstretch>0</horstretch>
@@ -146,7 +146,7 @@
          </font>
         </property>
         <property name="text">
-         <string>Waiting...</string>
+         <string>Waiting</string>
         </property>
        </widget>
       </item>
