@@ -11,17 +11,30 @@ curdir = os.path.dirname(os.path.abspath(__file__))
 class DataTransferThread(QThread):
     def __init__(self, guiApp):
         QThread.__init__(self)
-        self.port = getArduinoPort()
         self.guiApp = guiApp
-
+        self.getPort()
+        
     def __del__(self):
-        self.port.close()
+        if hasattr(self, 'port'):
+            self.port.close()
         self.wait()
 
     def run(self):
-        while(True):
-            self.guiApp.updateStatusBar(self.port.readline())
+        while (True):
+            if(self.isPortAvailable):
+                self.guiApp.setStatusBarStyleSheet_Normal()
+                self.guiApp.updateStatusBar(self.port.readline())
+            else:
+                self.guiApp.setStatusBarStyleSheet_Error()
+                self.guiApp.updateStatusBar("ARDUINO NOT CONNECTED!")
+                self.getPort()
 
+    def getPort(self):
+        try:
+            self.port = getArduinoPort()
+            self.isPortAvailable = True 
+        except IOError:
+            self.isPortAvailable = False
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -54,6 +67,18 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
     def updateStatusBar(self, value):
         self.ui.statusBar.showMessage(str(value))
+
+    def setStatusBarStyleSheet_Error(self):
+        self.ui.statusBar.setStyleSheet(
+            'color: rgb(255,0,0);'
+            'font-weight: bold;'
+        )
+
+    def setStatusBarStyleSheet_Normal(self):
+        self.ui.statusBar.setStyleSheet(
+            'color: rgb(0,0,0);'
+            'font-weight: normal;'
+        ) 
 
     def done(self):
         self.ui.statusBar.showMessage(str("Done!"))
