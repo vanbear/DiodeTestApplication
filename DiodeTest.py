@@ -1,14 +1,17 @@
 from PyQt5 import QtWidgets, uic
-from PyQt5.QtCore import QThread
+from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 import sys
 import os
 import serial
 import serial.tools.list_ports
 import warnings
 
+global curdir, serialPort
 curdir = os.path.dirname(os.path.abspath(__file__))
 
 class DataTransferThread(QThread):
+    signalStatusBarUpdate = pyqtSignal('QString')
+
     def __init__(self, guiApp):
         QThread.__init__(self)
         self.guiApp = guiApp
@@ -20,14 +23,32 @@ class DataTransferThread(QThread):
         self.wait()
 
     def run(self):
-        while (True):
-            if(self.isPortAvailable):
-                self.guiApp.setStatusBarStyleSheet_Normal()
-                self.guiApp.updateStatusBar(self.port.readline())
+        while True:
+            if self.isPortAvailable:
+                try:
+                    self.guiApp.setStatusBarStyleSheet_Normal()
+                    data = self.port.readline()
+                    if (data):
+                        self.signalStatusBarUpdate.emit(data.decode())
+                        self.parseMessage(data)
+                except serial.SerialException:
+                    self.isPortAvailable = False
+                    pass
             else:
                 self.guiApp.setStatusBarStyleSheet_Error()
-                self.guiApp.updateStatusBar("ARDUINO NOT CONNECTED!")
+                self.signalStatusBarUpdate.emit("ARDUINO NOT CONNECTED!")
                 self.getPort()
+
+    def parseMessage(self, msg):
+        valDict = {}
+        msgRaw = msg[msg.find(b"{")+1 : msg.find(b"}")]
+        [msgName, msgValues] = msgRaw.split(b":")
+        if msgName.decode()=='Data':
+            valNames = ['stepA', 'stepB', 'dirA', 'dirB', 'lightVal']
+            valList = msgValues.split(b";")
+            for i in range(len(valList)):
+                valDict[valNames[i]] = valList[i].decode()
+            print(valDict)
 
     def getPort(self):
         try:
@@ -35,13 +56,16 @@ class DataTransferThread(QThread):
             self.isPortAvailable = True 
         except IOError:
             self.isPortAvailable = False
+            pass
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(ApplicationWindow, self).__init__()
         self.ui = uic.loadUi(os.path.join(curdir, 'DiodeTestGUI/mainwindow.ui'), self)
         self.setupTable()
+        # == thread
         self.dataThread = DataTransferThread(self)
+        self.dataThread.signalStatusBarUpdate.connect(self.updateStatusBar)
         self.dataThread.start()
 
     def setupTable(self):
@@ -65,6 +89,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def updateProgressBar(self, value):
         self.ui.progressBar.setValue(value)
 
+    @pyqtSlot('QString')
     def updateStatusBar(self, value):
         self.ui.statusBar.showMessage(str(value))
 
@@ -106,10 +131,6 @@ def main():
     # === MAIN LOOP ===
     form.updateProgressBar(50)
     form.addTableItem(1, 1, 0, 0, 52)
-    
-    # while(True):
-    #     form.updateStatusBar(str(port.readline()))
-    #     form.update()
 
     # === END ===
     app.exec_()
