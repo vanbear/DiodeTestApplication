@@ -21,7 +21,7 @@ overallSteps = 0
 madeSteps = 0
 acquiredData = []
 previousMilis = 0
-plotInterval = 3000
+plotInterval = 1000
 
 
 #=========== DATA TRANSFER
@@ -112,7 +112,7 @@ class DataTransferThread(QThread):
 
 #=========== PLOT CANVAS
 class PlotCanvas(FigureCanvas):
-    def __init__(self, parent=None, width = 5, height = 4, dpi = 100):
+    def __init__(self, parent=None, width = 4.8, height = 3.8, dpi = 100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
  

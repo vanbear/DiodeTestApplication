@@ -47,7 +47,7 @@
       <property name="sizeHint" stdset="0">
        <size>
         <width>20</width>
-        <height>40</height>
+        <height>10</height>
        </size>
       </property>
      </spacer>
@@ -71,7 +71,31 @@
        </spacer>
       </item>
       <item>
-       <widget class="QGraphicsView" name="plotView"/>
+       <widget class="QTabWidget" name="tabWidget">
+        <property name="currentIndex">
+         <number>0</number>
+        </property>
+        <widget class="QWidget" name="tabLinearPlot">
+         <attribute name="title">
+          <string>Linear</string>
+         </attribute>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QGraphicsView" name="plotView"/>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="tab2DPlot">
+         <attribute name="title">
+          <string>2D</string>
+         </attribute>
+        </widget>
+        <widget class="QWidget" name="tab3DPlot">
+         <attribute name="title">
+          <string>3D</string>
+         </attribute>
+        </widget>
+       </widget>
       </item>
       <item>
        <spacer name="horizontalSpacer_7">
