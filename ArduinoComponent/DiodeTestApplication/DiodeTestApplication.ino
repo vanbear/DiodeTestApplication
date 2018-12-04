@@ -82,10 +82,9 @@ void startMeasurement()
 {
   activateMotors();
   digitalWrite(gd::pins::LED, HIGH);
-  delay(2000);
   String initMessage =  data::SEMI_COLON + String(gd::steps::MOTOR_BASE_MAX/gd::steps::MOTOR_BASE_MEASURE_STEP) + data::SEMI_COLON
     + String(gd::steps::MOTOR_DIODE_MAX/gd::steps::MOTOR_DIODE_MEASURE_STEP);
-
+  
   // determine starting point
   if ( digitalRead(gd::pins::HALL_SENSOR_A) == LOW )
   {
@@ -102,6 +101,8 @@ void startMeasurement()
     dataService.sendError("Cannot determine base motor direction.");
     return;
   }
+
+  delay(2000);
   
   // start measurement
   int stepsDone_Base = 0;

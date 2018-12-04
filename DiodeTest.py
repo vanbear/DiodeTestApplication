@@ -1,20 +1,30 @@
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
+from PyQt5.QtWidgets import QSizePolicy
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import sys
 import os
 import serial
 import serial.tools.list_ports
-import warnings
 
-global curdir, serialPort
 curdir = os.path.dirname(os.path.abspath(__file__))
+startingNames = ["StartingPoint", "maxStepsA", "maxStepsB"]
+valueNames = ["stepA", "stepB", "dirA", "dirB", "value"]
+overallSteps = 0
+madeSteps = 0
 
 class DataTransferThread(QThread):
     signalStatusBarUpdate = pyqtSignal('QString')
+    signalStatusBarStyleNormal = pyqtSignal()
+    signalStatusBarStyleError = pyqtSignal()
+    signalAddValuesToTable = pyqtSignal(list)
+    signalStateLabelSetText = pyqtSignal('QString')
+    signalUpdateProgressBar = pyqtSignal(int)
 
-    def __init__(self, guiApp):
+    def __init__(self):
         QThread.__init__(self)
-        self.guiApp = guiApp
         self.getPort()
         
     def __del__(self):
@@ -23,37 +33,61 @@ class DataTransferThread(QThread):
         self.wait()
 
     def run(self):
+        global overallSteps, madeSteps
+        overallSteps = 0
+        madeSteps = 0
         while True:
             if self.isPortAvailable:
                 try:
-                    self.guiApp.setStatusBarStyleSheet_Normal()
+                    self.signalStatusBarStyleNormal.emit()
                     data = self.port.readline()
                     if (data):
                         self.signalStatusBarUpdate.emit(data.decode())
-                        self.parseMessage(data)
+                        self.interpretMessage(data)
                 except serial.SerialException:
                     self.isPortAvailable = False
                     pass
             else:
-                self.guiApp.setStatusBarStyleSheet_Error()
+                self.signalStatusBarStyleError.emit()
                 self.signalStatusBarUpdate.emit("ARDUINO NOT CONNECTED!")
                 self.getPort()
 
-    def parseMessage(self, msg):
-        valDict = {}
+    def interpretMessage(self, msg):
         msgRaw = msg[msg.find(b"{")+1 : msg.find(b"}")]
         [msgName, msgValues] = msgRaw.split(b":")
-        if msgName.decode()=='Data':
-            valNames = ['stepA', 'stepB', 'dirA', 'dirB', 'lightVal']
-            valList = msgValues.split(b";")
-            for i in range(len(valList)):
-                valDict[valNames[i]] = valList[i].decode()
-            print(valDict)
+        if msgName==b'CalibrationStart':
+            self.signalStateLabelSetText.emit('Calibrating')
+        elif msgName==b'MeasureStart':
+            self.parseStartingData(msgValues)
+        elif msgName==b'Data':
+            self.parseData(msgValues)
+        elif msgName==b'MeasureEnd':
+            self.signalStateLabelSetText.emit('Measurement completed')
+        elif msgName==b'Error':
+            self.parseError(msgValues)
+
+    def parseStartingData(self, data):
+        global overallSteps
+        valuesList = data.split(b";")
+        [startingPoint, maxA, maxB] = valuesList
+        overallSteps = int(maxA)*int(maxB)
+        self.signalStateLabelSetText.emit('Starting at point ' + startingPoint.decode() + ' with ' + str(overallSteps) + ' overall steps')
+
+    def parseData(self, data):
+        global madeSteps
+        self.signalStateLabelSetText.emit('Measuring (' + str(madeSteps) + ' / ' + str(overallSteps) + ')')
+        valuesList = data.split(b";")
+        madeSteps = madeSteps + 1
+        self.signalUpdateProgressBar.emit(int(madeSteps/800*100))
+        self.signalAddValuesToTable.emit(valuesList)
+
+    def parseError(self, data):
+        self.signalStateLabelSetText.emit(data.decode())
 
     def getPort(self):
         try:
             self.port = getArduinoPort()
-            self.isPortAvailable = True 
+            self.isPortAvailable = True
         except IOError:
             self.isPortAvailable = False
             pass
@@ -64,28 +98,35 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ui = uic.loadUi(os.path.join(curdir, 'DiodeTestGUI/mainwindow.ui'), self)
         self.setupTable()
         # == thread
-        self.dataThread = DataTransferThread(self)
-        self.dataThread.signalStatusBarUpdate.connect(self.updateStatusBar)
+        self.dataThread = DataTransferThread()
+        self.setupSignals()
         self.dataThread.start()
+
+    def setupSignals(self):
+        self.dataThread.signalStatusBarUpdate.connect(self.updateStatusBar)
+        self.dataThread.signalStatusBarStyleError.connect(self.setStatusBarStyleSheet_Error)
+        self.dataThread.signalStatusBarStyleNormal.connect(self.setStatusBarStyleSheet_Normal)
+        self.dataThread.signalAddValuesToTable.connect(self.addTableItem)
+        self.dataThread.signalStateLabelSetText.connect(self.setStateLabelText)
+        self.dataThread.signalUpdateProgressBar.connect(self.updateProgressBar)
 
     def setupTable(self):
         columnCount = 5
         table = self.ui.dataTable
         table.setColumnCount(columnCount)
 
-        table.setHorizontalHeaderLabels(["stepA", "stepB", "dirA", "dirB", "value"])
+        table.setHorizontalHeaderLabels(valueNames)
         for i in range(columnCount):
-            table.setColumnWidth(i, 47)        
+            table.setColumnWidth(i, 40)     
 
-    def addTableItem(self, stepA, stepB, dirA, dirB, lightValue):
+    @pyqtSlot(list)
+    def addTableItem(self, values):
         table = self.ui.dataTable
         table.insertRow(0)
-        table.setItem(0, 0, QtWidgets.QTableWidgetItem(str(stepA)))
-        table.setItem(0, 1, QtWidgets.QTableWidgetItem(str(stepB)))
-        table.setItem(0, 2, QtWidgets.QTableWidgetItem(str(dirA)))
-        table.setItem(0, 3, QtWidgets.QTableWidgetItem(str(dirB)))
-        table.setItem(0, 4, QtWidgets.QTableWidgetItem(str(lightValue)))
+        for i in range(len(values)):
+            table.setItem(0, i, QtWidgets.QTableWidgetItem(values[i].decode()))
 
+    @pyqtSlot(int)
     def updateProgressBar(self, value):
         self.ui.progressBar.setValue(value)
 
@@ -93,20 +134,23 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def updateStatusBar(self, value):
         self.ui.statusBar.showMessage(str(value))
 
+    @pyqtSlot()
     def setStatusBarStyleSheet_Error(self):
         self.ui.statusBar.setStyleSheet(
             'color: rgb(255,0,0);'
             'font-weight: bold;'
         )
 
+    @pyqtSlot()
     def setStatusBarStyleSheet_Normal(self):
         self.ui.statusBar.setStyleSheet(
             'color: rgb(0,0,0);'
             'font-weight: normal;'
         ) 
 
-    def done(self):
-        self.ui.statusBar.showMessage(str("Done!"))
+    @pyqtSlot('QString')
+    def setStateLabelText(self, value):
+        self.ui.stateLabel.setText(value)
 
 
 def getArduinoPort():
@@ -117,8 +161,6 @@ def getArduinoPort():
     ]
     if not arduino_ports:
         raise IOError("No Arduino found")
-    if len(arduino_ports) > 1:
-        warnings.warn('Multiple Arduinos found - using the first')
 
     return serial.Serial(arduino_ports[0], 9600)
 
@@ -129,8 +171,7 @@ def main():
     form.show()
 
     # === MAIN LOOP ===
-    form.updateProgressBar(50)
-    form.addTableItem(1, 1, 0, 0, 52)
+    form.updateProgressBar(0)
 
     # === END ===
     app.exec_()
