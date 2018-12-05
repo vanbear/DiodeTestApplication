@@ -23,4 +23,7 @@ namespace data
 
     const String COLON = ":";
     const String SEMI_COLON = ";";
+    const char BEGIN_MSG = '{';
+    const char END_MSG = '}';
+    const String START = "Start";
 }

@@ -9,6 +9,8 @@ Pins pins2(8, 9, 10, 11);
 MyMotor motorBase(pins2, 200);
 
 DataTransferService dataService;
+String receivedMessage;
+bool isReceivingMessage(false);
 
 void setup()
 {
@@ -26,22 +28,42 @@ void setup()
   motorDiode.setDelay(1);
   motorBase.setDelay(3);
   pinMode(gd::pins::MOTOR_SLEEP, OUTPUT);
-
-  // program start
-  if (calibrate())
-  {
-    startMeasurement();
-  }
-  else
-  {
-    sleepMotors();
-  }
-  sleepMotors();
 }
 
 void loop()
 {
-  // nothing
+  if(readStartMessage())
+  {
+    if (calibrate())
+    {
+      startMeasurement();
+    }
+    sleepMotors();
+  }
+}
+
+bool readStartMessage()
+{
+  if (Serial.available() > 0)
+  {
+    char receivedChar = Serial.read();
+    
+    if (receivedChar == data::END_MSG)
+    {
+      isReceivingMessage = false;
+      return (receivedMessage == data::START);
+    }
+    if (isReceivingMessage)
+    {
+      receivedMessage.concat(receivedChar);
+    }
+    if (receivedChar == data::BEGIN_MSG)
+    {
+      isReceivingMessage = true;
+      receivedMessage = String();
+    }
+  }
+  return false;
 }
 
 bool calibrate()

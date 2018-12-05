@@ -14,6 +14,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import QSizePolicy
 
 #=========== GLOBAL VARIABLES
+windowHeight, windowWidth = [890, 580]
 curdir = os.path.dirname(os.path.abspath(__file__))
 startingNames = ["StartingPoint", "maxStepsA", "maxStepsB"]
 valueNames = ["stepA", "stepB", "dirA", "dirB", "value"]
@@ -22,6 +23,7 @@ madeSteps = 0
 acquiredData = []
 previousMilis = 0
 plotInterval = 1000
+arduinoPort = serial.Serial()
 
 
 #=========== DATA TRANSFER
@@ -39,8 +41,8 @@ class DataTransferThread(QThread):
         self.getPort()
         
     def __del__(self):
-        if hasattr(self, 'port'):
-            self.port.close()
+        if arduinoPort.isOpen():
+            arduinoPort.close()
         self.wait()
 
     def run(self):
@@ -52,7 +54,7 @@ class DataTransferThread(QThread):
             if self.isPortAvailable:
                 try:
                     self.signalStatusBarStyleNormal.emit()
-                    data = self.port.readline()
+                    data = arduinoPort.readline()
                     if (data):
                         self.signalStatusBarUpdate.emit(data.decode())
                         self.interpretMessage(data)
@@ -103,8 +105,9 @@ class DataTransferThread(QThread):
         self.signalStateLabelSetText.emit(data.decode())
 
     def getPort(self):
+        global arduinoPort
         try:
-            self.port = getArduinoPort()
+            arduinoPort = getArduinoPort()
             self.isPortAvailable = True
         except IOError:
             self.isPortAvailable = False
@@ -133,8 +136,9 @@ class PlotCanvas(FigureCanvas):
 #=========== MAIN APP
 class ApplicationWindow(QtWidgets.QMainWindow):
     def __init__(self):
+        global windowHeight, windowWidth
         super(ApplicationWindow, self).__init__()
-        self.setFixedSize(890,560)
+        self.setFixedSize(windowHeight, windowWidth)
 
         self.ui = uic.loadUi(os.path.join(curdir, 'DiodeTestGUI/mainwindow.ui'), self)
         self.setupTable()
@@ -153,6 +157,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.dataThread.signalStateLabelSetText.connect(self.setStateLabelText)
         self.dataThread.signalUpdateProgressBar.connect(self.updateProgressBar)
         self.dataThread.signalUpdatePlot.connect(self.updatePlot)
+        self.ui.buttonStart.clicked.connect(self.startMeasurement)
 
     def setupTable(self):
         columnCount = 5
@@ -199,6 +204,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     @pyqtSlot(list)
     def updatePlot(self, values):
         self.plotCanvas.plot(values)
+
+    @pyqtSlot()
+    def startMeasurement(self):
+        if arduinoPort.isOpen():
+            arduinoPort.write(b'{Start}')
 
 #=========== GLOBAL METHODS
 def getArduinoPort():
