@@ -20,6 +20,8 @@ startingNames = ["StartingPoint", "maxStepsA", "maxStepsB"]
 valueNames = ["stepA", "stepB", "dirA", "dirB", "value"]
 overallSteps = 0
 madeSteps = 0
+maxA = 0
+maxB = 0
 acquiredData = []
 acquiredData2D = []
 previousMilis = 0
@@ -91,7 +93,7 @@ class DataTransferThread(QThread):
                 self.parseError(msgValues)
 
     def parseStartingData(self, data):
-        global overallSteps, acquiredData, acquiredData2D
+        global overallSteps, acquiredData, acquiredData2D, maxA, maxB
         valuesList = data.split(b";")
         [startingPoint, maxA, maxB] = valuesList
         acquiredData2D = np.zeros((int(maxA), int(maxB)))
@@ -109,11 +111,12 @@ class DataTransferThread(QThread):
         dataToAppend = int(valuesList[-1].decode().replace('\r', ''))
         acquiredData.append(dataToAppend)
         acquiredData2D[int(valuesList[0])][int(valuesList[1])] = dataToAppend
+        acquiredData2Drotated = np.rot90(acquiredData2D, 3)
         currentMilis = getTime()
         if (currentMilis - previousMilis > plotInterval):
             previousMilis = currentMilis
             self.signalUpdateLinearPlot.emit(acquiredData)
-            self.signalUpdateSquarePlot.emit(acquiredData2D)
+            self.signalUpdateSquarePlot.emit(acquiredData2Drotated)
 
     def parseError(self, data):
         self.signalStateLabelSetText.emit(data.decode())
@@ -149,8 +152,31 @@ class LinearPlotCanvas(FigureCanvas):
 class SquarePlotCanvas(LinearPlotCanvas):
     def plot(self, data):
         self.axes.clear()
-        self.axes.imshow(data, cmap='binary')
+        self.axes.imshow(data, cmap='gray', vmin=0, vmax=255)
         self.draw()
+
+class PolarPlotCanvas(FigureCanvas):
+    def __init__(self, parent=None, width = 4.8, height = 3.8, dpi = 100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111, polar='True')
+ 
+        FigureCanvas.__init__(self, fig)
+        self.setParent(parent)
+ 
+        FigureCanvas.setSizePolicy(self,
+                QSizePolicy.Expanding,
+                QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+        self.axes.set_yticklabels([])
+
+    def plot(self, data):
+        self.axes.clear()
+        theta, r = np.mgrid[0:2*np.pi:32j, 0:1:25j]
+        z = data.reshape(theta.shape)
+        self.axes.pcolormesh(theta, r, z, cmap='gray', vmin=0, vmax=255)
+        self.axes.set_yticklabels([])
+        self.draw()
+
 
 #=========== MAIN APP
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -163,6 +189,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.setupTable()
         self.linearPlotCanvas = LinearPlotCanvas(self.linearPlotView)
         self.squarePlotCanvas = SquarePlotCanvas(self.squarePlotView)
+        self.polarPlotCanvas = PolarPlotCanvas(self.polarPlotView)
         # == thread
         self.dataThread = DataTransferThread()
         self.setupSignals()
@@ -231,6 +258,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     @pyqtSlot(np.ndarray)
     def updateSquarePlot(self, values):
         self.squarePlotCanvas.plot(values)
+        self.polarPlotCanvas.plot(values)
 
     @pyqtSlot()
     def startMeasurement(self):
