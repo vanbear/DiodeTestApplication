@@ -10,7 +10,7 @@ from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt5 import QtWidgets, uic
-from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import *
 from PyQt5.QtWidgets import QSizePolicy
 
 #=========== GLOBAL VARIABLES
@@ -21,9 +21,11 @@ valueNames = ["stepA", "stepB", "dirA", "dirB", "value"]
 overallSteps = 0
 madeSteps = 0
 acquiredData = []
+acquiredData2D = []
 previousMilis = 0
 plotInterval = 1000
 arduinoPort = serial.Serial()
+measuringStarted = False
 
 
 #=========== DATA TRANSFER
@@ -34,7 +36,8 @@ class DataTransferThread(QThread):
     signalAddValuesToTable = pyqtSignal(list)
     signalStateLabelSetText = pyqtSignal('QString')
     signalUpdateProgressBar = pyqtSignal(int)
-    signalUpdatePlot = pyqtSignal(list)
+    signalUpdateLinearPlot = pyqtSignal(list)
+    signalUpdateSquarePlot = pyqtSignal(np.ndarray)
 
     def __init__(self):
         QThread.__init__(self)
@@ -67,23 +70,31 @@ class DataTransferThread(QThread):
                 self.getPort()
 
     def interpretMessage(self, msg):
+        global measuringStarted
         msgRaw = msg[msg.find(b"{")+1 : msg.find(b"}")]
-        [msgName, msgValues] = msgRaw.split(b":")
-        if msgName==b'CalibrationStart':
-            self.signalStateLabelSetText.emit('Calibrating')
-        elif msgName==b'MeasureStart':
-            self.parseStartingData(msgValues)
-        elif msgName==b'Data':
-            self.parseData(msgValues)
-        elif msgName==b'MeasureEnd':
-            self.signalStateLabelSetText.emit('Measurement completed')
-        elif msgName==b'Error':
-            self.parseError(msgValues)
+        try:
+            [msgName, msgValues] = msgRaw.split(b":")
+        except ValueError:
+            self.signalStatusBarStyleError.emit()
+            self.signalStatusBarUpdate.emit("Received invalid message.")
+        else:
+            if msgName==b'CalibrationStart':
+                self.signalStateLabelSetText.emit('Calibrating')
+            elif msgName==b'MeasureStart':
+                measuringStarted = True
+                self.parseStartingData(msgValues)
+            elif msgName==b'Data' and measuringStarted == True:
+                self.parseData(msgValues)
+            elif msgName==b'MeasureEnd':
+                self.signalStateLabelSetText.emit('Measurement completed')
+            elif msgName==b'Error':
+                self.parseError(msgValues)
 
     def parseStartingData(self, data):
-        global overallSteps, acquiredData
+        global overallSteps, acquiredData, acquiredData2D
         valuesList = data.split(b";")
         [startingPoint, maxA, maxB] = valuesList
+        acquiredData2D = np.zeros((int(maxA), int(maxB)))
         overallSteps = int(maxA)*int(maxB)
         self.signalStateLabelSetText.emit('Starting at point ' + startingPoint.decode() + ' with ' + str(overallSteps) + ' overall steps')
         
@@ -95,11 +106,14 @@ class DataTransferThread(QThread):
         madeSteps = madeSteps + 1
         self.signalUpdateProgressBar.emit(int(madeSteps/800*100))
         self.signalAddValuesToTable.emit(valuesList)
-        acquiredData.append(valuesList[-1].decode().replace('\r', ''))
+        dataToAppend = int(valuesList[-1].decode().replace('\r', ''))
+        acquiredData.append(dataToAppend)
+        acquiredData2D[int(valuesList[0])][int(valuesList[1])] = dataToAppend
         currentMilis = getTime()
         if (currentMilis - previousMilis > plotInterval):
             previousMilis = currentMilis
-            self.signalUpdatePlot.emit(list(map(int, acquiredData)))
+            self.signalUpdateLinearPlot.emit(acquiredData)
+            self.signalUpdateSquarePlot.emit(acquiredData2D)
 
     def parseError(self, data):
         self.signalStateLabelSetText.emit(data.decode())
@@ -114,7 +128,7 @@ class DataTransferThread(QThread):
             pass
 
 #=========== PLOT CANVAS
-class PlotCanvas(FigureCanvas):
+class LinearPlotCanvas(FigureCanvas):
     def __init__(self, parent=None, width = 4.8, height = 3.8, dpi = 100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
@@ -126,11 +140,16 @@ class PlotCanvas(FigureCanvas):
                 QSizePolicy.Expanding,
                 QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
-        self.plot([])
 
     def plot(self, data):
         self.axes.clear()
         self.axes.plot(data, 'r-')
+        self.draw()
+
+class SquarePlotCanvas(LinearPlotCanvas):
+    def plot(self, data):
+        self.axes.clear()
+        self.axes.imshow(data, cmap='binary')
         self.draw()
 
 #=========== MAIN APP
@@ -142,21 +161,25 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         self.ui = uic.loadUi(os.path.join(curdir, 'DiodeTestGUI/mainwindow.ui'), self)
         self.setupTable()
-        self.plotCanvas = PlotCanvas(self.plotView)
-        self.plotCanvas.move(0,0)
+        self.linearPlotCanvas = LinearPlotCanvas(self.linearPlotView)
+        self.squarePlotCanvas = SquarePlotCanvas(self.squarePlotView)
         # == thread
         self.dataThread = DataTransferThread()
         self.setupSignals()
         self.dataThread.start()
 
     def setupSignals(self):
+        #status bar
         self.dataThread.signalStatusBarUpdate.connect(self.updateStatusBar)
         self.dataThread.signalStatusBarStyleError.connect(self.setStatusBarStyleSheet_Error)
         self.dataThread.signalStatusBarStyleNormal.connect(self.setStatusBarStyleSheet_Normal)
+        # plots
+        self.dataThread.signalUpdateLinearPlot.connect(self.updateLinearPlot)
+        self.dataThread.signalUpdateSquarePlot.connect(self.updateSquarePlot)
+        # other
         self.dataThread.signalAddValuesToTable.connect(self.addTableItem)
         self.dataThread.signalStateLabelSetText.connect(self.setStateLabelText)
         self.dataThread.signalUpdateProgressBar.connect(self.updateProgressBar)
-        self.dataThread.signalUpdatePlot.connect(self.updatePlot)
         self.ui.buttonStart.clicked.connect(self.startMeasurement)
 
     def setupTable(self):
@@ -202,8 +225,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ui.stateLabel.setText(value)
 
     @pyqtSlot(list)
-    def updatePlot(self, values):
-        self.plotCanvas.plot(values)
+    def updateLinearPlot(self, values):
+        self.linearPlotCanvas.plot(values)
+
+    @pyqtSlot(np.ndarray)
+    def updateSquarePlot(self, values):
+        self.squarePlotCanvas.plot(values)
 
     @pyqtSlot()
     def startMeasurement(self):

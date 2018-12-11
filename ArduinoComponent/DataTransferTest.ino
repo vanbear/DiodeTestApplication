@@ -24,5 +24,5 @@ void loop()
 void print(String msg)
 {
     Serial.println(msg);
-    delay(500);
+    delay(250);
 }

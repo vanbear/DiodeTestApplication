@@ -81,7 +81,7 @@
          </attribute>
          <layout class="QHBoxLayout" name="horizontalLayout_4">
           <item>
-           <widget class="QGraphicsView" name="plotView"/>
+           <widget class="QGraphicsView" name="linearPlotView"/>
           </item>
          </layout>
         </widget>
@@ -89,11 +89,21 @@
          <attribute name="title">
           <string>2D</string>
          </attribute>
+         <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <item>
+           <widget class="QGraphicsView" name="squarePlotView"/>
+          </item>
+         </layout>
         </widget>
-        <widget class="QWidget" name="tab3DPlot">
+        <widget class="QWidget" name="tabPolarPlot">
          <attribute name="title">
-          <string>3D</string>
+          <string>Polar</string>
          </attribute>
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <item>
+           <widget class="QGraphicsView" name="polarPlotView"/>
+          </item>
+         </layout>
         </widget>
        </widget>
       </item>
