@@ -97,7 +97,8 @@ int getLightDensity()
 {
   int valueMain = analogRead(gd::pins::LIGHT_SENSOR_MAIN);
   int valueRef = analogRead(gd::pins::LIGHT_SENSOR_REF);
-  return map(valueMain - valueRef, 0, 1023, 0, 255);
+  // return map(valueMain - valueRef, 0, 1023, 0, 255);
+  return (valueMain - valueRef);
 }
 
 void startMeasurement()
@@ -157,8 +158,6 @@ void startMeasurement()
 
   dataService.sendMessage(data::MEASURE_END, data::TRUE_TEXT_VALUE);
   motorDiode.doNSteps(gd::steps::MOTOR_DIODE_MAX);
-  motorBase.toggleDirection();
-  motorBase.doNSteps(gd::steps::MOTOR_BASE_MAX/2);
 
   delay(2000);
   digitalWrite(gd::pins::LED, LOW);

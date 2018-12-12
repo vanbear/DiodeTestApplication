@@ -102,7 +102,7 @@ class DataTransferThread(QThread):
         
 
     def parseData(self, data):
-        global madeSteps, previousMilis, plotInterval
+        global madeSteps
         self.signalStateLabelSetText.emit('Measuring (' + str(madeSteps) + ' / ' + str(overallSteps) + ')')
         valuesList = data.split(b";")
         madeSteps = madeSteps + 1
@@ -111,6 +111,10 @@ class DataTransferThread(QThread):
         dataToAppend = int(valuesList[-1].decode().replace('\r', ''))
         acquiredData.append(dataToAppend)
         acquiredData2D[int(valuesList[0])][int(valuesList[1])] = dataToAppend
+        self.initiatePlots()
+
+    def initiatePlots(self):
+        global previousMilis, plotInterval
         acquiredData2Drotated = np.rot90(acquiredData2D, 3)
         currentMilis = getTime()
         if (currentMilis - previousMilis > plotInterval):
@@ -173,7 +177,7 @@ class PolarPlotCanvas(FigureCanvas):
         self.axes.clear()
         theta, r = np.mgrid[0:2*np.pi:32j, 0:1:25j]
         z = data.reshape(theta.shape)
-        self.axes.pcolormesh(theta, r, z, cmap='gray', vmin=0, vmax=255)
+        self.axes.pcolormesh(theta, r, z, cmap='gray', vmin=0, vmax=1023)
         self.axes.set_yticklabels([])
         self.draw()
 

@@ -14,10 +14,10 @@ namespace gd
 
     namespace steps
     {
-        constexpr int MOTOR_BASE_MAX = 200;
+        constexpr int MOTOR_BASE_MAX = 100;
         constexpr int MOTOR_DIODE_MAX = 2048;
 
-        constexpr int MOTOR_BASE_MEASURE_STEP = 8;
+        constexpr int MOTOR_BASE_MEASURE_STEP = 4;
         constexpr int MOTOR_DIODE_MEASURE_STEP = 64;
     }
 
