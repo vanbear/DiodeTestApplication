@@ -88,6 +88,7 @@ class DataTransferThread(QThread):
             elif msgName==b'Data' and measuringStarted == True:
                 self.parseData(msgValues)
             elif msgName==b'MeasureEnd':
+                self.initiatePlots()
                 self.signalStateLabelSetText.emit('Measurement completed')
             elif msgName==b'Error':
                 self.parseError(msgValues)
@@ -101,8 +102,9 @@ class DataTransferThread(QThread):
         self.signalStateLabelSetText.emit('Starting at point ' + startingPoint.decode() + ' with ' + str(overallSteps) + ' overall steps')
         
 
+    # stepA, stepB, dirA, dirB, light
     def parseData(self, data):
-        global madeSteps
+        global madeSteps, maxB
         self.signalStateLabelSetText.emit('Measuring (' + str(madeSteps) + ' / ' + str(overallSteps) + ')')
         valuesList = data.split(b";")
         madeSteps = madeSteps + 1
@@ -110,7 +112,12 @@ class DataTransferThread(QThread):
         self.signalAddValuesToTable.emit(valuesList)
         dataToAppend = int(valuesList[-1].decode().replace('\r', ''))
         acquiredData.append(dataToAppend)
-        acquiredData2D[int(valuesList[0])][int(valuesList[1])] = dataToAppend
+        tableIndex = 0
+        if int(valuesList[3]) == 1:
+            tableIndex = int(maxB) - int(valuesList[1]) - 1
+        else:
+            tableIndex = int(valuesList[1])
+        acquiredData2D[int(valuesList[0])][tableIndex] = dataToAppend
         self.initiatePlots()
 
     def initiatePlots(self):
@@ -177,7 +184,7 @@ class PolarPlotCanvas(FigureCanvas):
         self.axes.clear()
         theta, r = np.mgrid[0:2*np.pi:32j, 0:1:25j]
         z = data.reshape(theta.shape)
-        self.axes.pcolormesh(theta, r, z, cmap='gray', vmin=0, vmax=1023)
+        self.axes.pcolormesh(theta, r, z, cmap='gray', vmin=0, vmax=255)
         self.axes.set_yticklabels([])
         self.draw()
 
