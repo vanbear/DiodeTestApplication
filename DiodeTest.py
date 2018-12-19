@@ -8,6 +8,7 @@ import serial
 import serial.tools.list_ports
 from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
+from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.figure import Figure
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtCore import *
@@ -197,6 +198,28 @@ class PolarPlotCanvas(FigureCanvas):
         self.axes.set_yticklabels([])
         self.draw()
 
+class Polar3DPlotCanvas(FigureCanvas):
+    def __init__(self, parent=None, width = 4.8, height = 3.8, dpi = 100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111, projection='3d')
+ 
+        FigureCanvas.__init__(self, fig)
+        self.setParent(parent)
+ 
+        FigureCanvas.setSizePolicy(self,
+                QSizePolicy.Expanding,
+                QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+
+    def plot(self, data):
+        global maxA, maxB
+        self.axes.clear()
+        complexA = complex(0, int(maxA))
+        complexB = complex(0, int(maxB))
+        theta, r = np.mgrid[0:2*np.pi:complexB, 0:1:complexA]
+        z = data.reshape(theta.shape)
+        self.axes.plot_surface(theta, r, z)
+        self.draw()
 
 #=========== MAIN APP
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -210,6 +233,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.linearPlotCanvas = LinearPlotCanvas(self.linearPlotView)
         self.squarePlotCanvas = SquarePlotCanvas(self.squarePlotView)
         self.polarPlotCanvas = PolarPlotCanvas(self.polarPlotView)
+        self.polar3DPlotCanvas = Polar3DPlotCanvas(self.polar3DPlotView)
         # == thread
         self.dataThread = DataTransferThread()
         self.setupSignals()
@@ -286,6 +310,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def updateSquarePlot(self, values):
         self.squarePlotCanvas.plot(values)
         self.polarPlotCanvas.plot(values)
+        self.polar3DPlotCanvas.plot(values)
 
     @pyqtSlot()
     def startMeasurement(self):
