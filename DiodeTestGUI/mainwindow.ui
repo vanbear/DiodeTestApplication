@@ -73,7 +73,7 @@
       <item>
        <widget class="QTabWidget" name="tabWidget">
         <property name="currentIndex">
-         <number>0</number>
+         <number>2</number>
         </property>
         <widget class="QWidget" name="tabLinearPlot">
          <attribute name="title">
@@ -102,6 +102,16 @@
          <layout class="QHBoxLayout" name="horizontalLayout_7">
           <item>
            <widget class="QGraphicsView" name="polarPlotView"/>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="tab3DPolarPlot">
+         <attribute name="title">
+          <string>3D Polar</string>
+         </attribute>
+         <layout class="QHBoxLayout" name="horizontalLayout_8">
+          <item>
+           <widget class="QGraphicsView" name="polar3DPlotView"/>
           </item>
          </layout>
         </widget>

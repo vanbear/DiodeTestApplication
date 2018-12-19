@@ -26,7 +26,7 @@ void setup()
 
   // motors
   motorDiode.setDelay(1);
-  motorBase.setDelay(3);
+  motorBase.setDelay(5);
   pinMode(gd::pins::MOTOR_SLEEP, OUTPUT);
 }
 
@@ -69,21 +69,19 @@ bool readStartMessage()
 bool calibrate()
 {
   activateMotors();
+  motorBase.setStepMode(StepMode::FULL_STEP);
 
   int stepsDone = 0;
-  const int stepsPerRevolution = 1;
-  motorBase.setDelay(8);
   motorBase.changeDirection(StepDirection::COUNTER_CLOCKWISE);
   
   dataService.sendMessage(data::CALIBRATION_START, data::TRUE_TEXT_VALUE);
   while ( (digitalRead(gd::pins::HALL_SENSOR_A) == HIGH) && (digitalRead(gd::pins::HALL_SENSOR_B) == HIGH) )
   {
-    motorBase.doNSteps(stepsPerRevolution);
-    stepsDone += stepsPerRevolution;
+    motorBase.doNSteps(gd::steps::MOTOR_BASE_MEASURE_STEP);
+    stepsDone += gd::steps::MOTOR_BASE_MEASURE_STEP;
     if (stepsDone >= gd::steps::MOTOR_BASE_MAX)
     {
       dataService.sendError("Calibration failed - Hall sensor didn't activate after full rotation, returning to starting position.");
-      motorBase.setDelay(8);
       motorBase.toggleDirection();
       motorBase.doNSteps(stepsDone);
       return false;
@@ -97,8 +95,7 @@ int getLightDensity()
 {
   int valueMain = analogRead(gd::pins::LIGHT_SENSOR_MAIN);
   int valueRef = analogRead(gd::pins::LIGHT_SENSOR_REF);
-  // return map(valueMain - valueRef, 0, 1023, 0, 255);
-  return (valueMain - valueRef);
+  return map(valueMain - valueRef, 0, 1023, 0, 255);
 }
 
 void startMeasurement()
@@ -141,6 +138,12 @@ void startMeasurement()
 
     while (stepsDone_Diode < gd::steps::MOTOR_DIODE_MAX)
     {
+      if (readStartMessage())
+      {
+        endMeasurement();
+        dataService.sendError("Measurement ended by user.");
+        return;
+      }
       dataService.sendData(counterBase, counterDiode, motorBase.getCurrentDirection(), motorDiode.getCurrentDirection(), getLightDensity());
 
       motorDiode.doNSteps(gd::steps::MOTOR_DIODE_MEASURE_STEP);
@@ -160,5 +163,10 @@ void startMeasurement()
   motorDiode.doNSteps(gd::steps::MOTOR_DIODE_MAX);
 
   delay(2000);
+  endMeasurement();
+}
+
+void endMeasurement()
+{
   digitalWrite(gd::pins::LED, LOW);
 }

@@ -36,6 +36,7 @@ class DataTransferThread(QThread):
     signalStatusBarStyleNormal = pyqtSignal()
     signalStatusBarStyleError = pyqtSignal()
     signalAddValuesToTable = pyqtSignal(list)
+    signalClearTable = pyqtSignal()
     signalStateLabelSetText = pyqtSignal('QString')
     signalUpdateProgressBar = pyqtSignal(int)
     signalUpdateLinearPlot = pyqtSignal(list)
@@ -89,26 +90,31 @@ class DataTransferThread(QThread):
                 self.parseData(msgValues)
             elif msgName==b'MeasureEnd':
                 self.initiatePlots()
+                measuringStarted = False
                 self.signalStateLabelSetText.emit('Measurement completed')
             elif msgName==b'Error':
+                measuringStarted = False
                 self.parseError(msgValues)
 
     def parseStartingData(self, data):
-        global overallSteps, acquiredData, acquiredData2D, maxA, maxB
+        global overallSteps, acquiredData, acquiredData2D, madeSteps, maxA, maxB
         valuesList = data.split(b";")
         [startingPoint, maxA, maxB] = valuesList
+        self.signalClearTable.emit()
         acquiredData2D = np.zeros((int(maxA), int(maxB)))
+        acquiredData = []
+        madeSteps = 0
+        overallSteps = 0
         overallSteps = int(maxA)*int(maxB)
         self.signalStateLabelSetText.emit('Starting at point ' + startingPoint.decode() + ' with ' + str(overallSteps) + ' overall steps')
         
-
     # stepA, stepB, dirA, dirB, light
     def parseData(self, data):
-        global madeSteps, maxB
+        global madeSteps, maxB, overallSteps
         self.signalStateLabelSetText.emit('Measuring (' + str(madeSteps) + ' / ' + str(overallSteps) + ')')
         valuesList = data.split(b";")
         madeSteps = madeSteps + 1
-        self.signalUpdateProgressBar.emit(int(madeSteps/800*100))
+        self.signalUpdateProgressBar.emit(int(madeSteps/overallSteps*100))
         self.signalAddValuesToTable.emit(valuesList)
         dataToAppend = int(valuesList[-1].decode().replace('\r', ''))
         acquiredData.append(dataToAppend)
@@ -181,8 +187,11 @@ class PolarPlotCanvas(FigureCanvas):
         self.axes.set_yticklabels([])
 
     def plot(self, data):
+        global maxA, maxB
         self.axes.clear()
-        theta, r = np.mgrid[0:2*np.pi:32j, 0:1:25j]
+        complexA = complex(0, int(maxA))
+        complexB = complex(0, int(maxB))
+        theta, r = np.mgrid[0:2*np.pi:complexB, 0:1:complexA]
         z = data.reshape(theta.shape)
         self.axes.pcolormesh(theta, r, z, cmap='gray', vmin=0, vmax=255)
         self.axes.set_yticklabels([])
@@ -214,8 +223,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         # plots
         self.dataThread.signalUpdateLinearPlot.connect(self.updateLinearPlot)
         self.dataThread.signalUpdateSquarePlot.connect(self.updateSquarePlot)
-        # other
+        # table
         self.dataThread.signalAddValuesToTable.connect(self.addTableItem)
+        self.dataThread.signalClearTable.connect(self.clearTable)
+        # other
         self.dataThread.signalStateLabelSetText.connect(self.setStateLabelText)
         self.dataThread.signalUpdateProgressBar.connect(self.updateProgressBar)
         self.ui.buttonStart.clicked.connect(self.startMeasurement)
@@ -235,6 +246,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         table.insertRow(0)
         for i in range(len(values)):
             table.setItem(0, i, QtWidgets.QTableWidgetItem(values[i].decode()))
+
+    @pyqtSlot()
+    def clearTable(self):
+        self.ui.dataTable.clearContents()
+        self.ui.dataTable.setRowCount(0)
 
     @pyqtSlot(int)
     def updateProgressBar(self, value):
