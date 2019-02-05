@@ -96,6 +96,7 @@ int getLightDensity()
   int valueMain = analogRead(gd::pins::LIGHT_SENSOR_MAIN);
   int valueRef = analogRead(gd::pins::LIGHT_SENSOR_REF);
   return map(valueMain - valueRef, 0, 1023, 0, 255);
+  // return valueMain;
 }
 
 void startMeasurement()

@@ -210,6 +210,7 @@ class Polar3DPlotCanvas(FigureCanvas):
                 QSizePolicy.Expanding,
                 QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
+        self.axes.mouse_init()
 
     def plot(self, data):
         global maxA, maxB
@@ -217,8 +218,36 @@ class Polar3DPlotCanvas(FigureCanvas):
         complexA = complex(0, int(maxA))
         complexB = complex(0, int(maxB))
         theta, r = np.mgrid[0:2*np.pi:complexB, 0:1:complexA]
+        X, Y = r*np.cos(theta), r*np.sin(theta)
         z = data.reshape(theta.shape)
-        self.axes.plot_surface(theta, r, z)
+        self.axes.set_zlim(0, 255)
+        self.axes.plot_surface(X, Y, z,  cmap='gray', vmin=0, vmax=255)
+        self.draw()
+        
+class Polar3DSpherePlotCanvas(FigureCanvas):
+    def __init__(self, parent=None, width = 4.8, height = 3.8, dpi = 100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111, projection='3d')
+ 
+        FigureCanvas.__init__(self, fig)
+        self.setParent(parent)
+ 
+        FigureCanvas.setSizePolicy(self,
+                QSizePolicy.Expanding,
+                QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+        self.axes.mouse_init()
+
+    def plot(self, data):
+        global maxA, maxB
+        self.axes.clear()
+        complexA = complex(0, int(maxA))
+        complexB = complex(0, int(maxB))
+        theta, r = np.mgrid[0:2*np.pi:complexB, 0:1:complexA]
+        X, Y = r*np.cos(theta), r*np.sin(theta)
+        z = data.reshape(theta.shape)
+        self.axes.set_zlim(0, 255)
+        self.axes.plot_surface(X, Y, z,  cmap='gray', vmin=0, vmax=255)
         self.draw()
 
 #=========== MAIN APP
@@ -234,6 +263,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.squarePlotCanvas = SquarePlotCanvas(self.squarePlotView)
         self.polarPlotCanvas = PolarPlotCanvas(self.polarPlotView)
         self.polar3DPlotCanvas = Polar3DPlotCanvas(self.polar3DPlotView)
+        self.polar3DSpherePlotCanvas = Polar3DSpherePlotCanvas(self.polar3DSpherePlotView)
         # == thread
         self.dataThread = DataTransferThread()
         self.setupSignals()
@@ -311,6 +341,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.squarePlotCanvas.plot(values)
         self.polarPlotCanvas.plot(values)
         self.polar3DPlotCanvas.plot(values)
+        self.polar3DSpherePlotCanvas.plot(values)
 
     @pyqtSlot()
     def startMeasurement(self):
