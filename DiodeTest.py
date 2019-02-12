@@ -53,6 +53,7 @@ class DataTransferThread(QThread):
         self.wait()
 
     def run(self):
+        print("Data Thread Start")
         global overallSteps, madeSteps, acquiredData
         overallSteps = 0
         madeSteps = 0
@@ -149,6 +150,31 @@ class DataTransferThread(QThread):
             pass
 
 #=========== PLOT CANVAS
+class PlotThread(QThread):
+    def __init__(self, linearPlotView, squarePlotView, polarPlotView, polar3DPlotView, polar3DSpherePlotView):
+        QThread.__init__(self)
+        self.linearPlotCanvas = LinearPlotCanvas(linearPlotView)
+        self.squarePlotCanvas = SquarePlotCanvas(squarePlotView)
+        self.polarPlotCanvas = PolarPlotCanvas(polarPlotView)
+        self.polar3DPlotCanvas = Polar3DPlotCanvas(polar3DPlotView)
+        self.polar3DSpherePlotCanvas = Polar3DSpherePlotCanvas(polar3DSpherePlotView)
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        print("Plot Thread Start")
+
+    def updateLinearPlot(self, values):
+        self.linearPlotCanvas.plot(values)
+
+    def updateSquarePlot(self, values):
+        self.squarePlotCanvas.plot(values)
+        self.polarPlotCanvas.plot(values)
+        self.polar3DPlotCanvas.plot(values)
+        self.polar3DSpherePlotCanvas.plot(values)
+
+
 class LinearPlotCanvas(FigureCanvas):
     def __init__(self, parent=None, width = 4.8, height = 3.8, dpi = 100):
         fig = Figure(figsize=(width, height), dpi=dpi)
@@ -256,18 +282,16 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         global windowHeight, windowWidth
         super(ApplicationWindow, self).__init__()
         self.setFixedSize(windowHeight, windowWidth)
-
         self.ui = uic.loadUi(os.path.join(curdir, 'DiodeTestGUI/mainwindow.ui'), self)
         self.setupTable()
-        self.linearPlotCanvas = LinearPlotCanvas(self.linearPlotView)
-        self.squarePlotCanvas = SquarePlotCanvas(self.squarePlotView)
-        self.polarPlotCanvas = PolarPlotCanvas(self.polarPlotView)
-        self.polar3DPlotCanvas = Polar3DPlotCanvas(self.polar3DPlotView)
-        self.polar3DSpherePlotCanvas = Polar3DSpherePlotCanvas(self.polar3DSpherePlotView)
+        self.isMeasurementRunning = False
+        
         # == thread
         self.dataThread = DataTransferThread()
+        self.plotThread = PlotThread(self.linearPlotView, self.squarePlotView, self.polarPlotView, self.polar3DPlotView, self.polar3DSpherePlotView)
         self.setupSignals()
         self.dataThread.start()
+        self.plotThread.start()
 
     def setupSignals(self):
         #status bar
@@ -293,6 +317,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         table.setHorizontalHeaderLabels(valueNames)
         for i in range(columnCount):
             table.setColumnWidth(i, 40)     
+
+    def closeEvent(self, event):
+            self.startMeasurement()
+            event.accept()
 
     @pyqtSlot(list)
     def addTableItem(self, values):
@@ -334,19 +362,17 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
     @pyqtSlot(list)
     def updateLinearPlot(self, values):
-        self.linearPlotCanvas.plot(values)
+        self.plotThread.updateLinearPlot(values)
 
     @pyqtSlot(np.ndarray)
     def updateSquarePlot(self, values):
-        self.squarePlotCanvas.plot(values)
-        self.polarPlotCanvas.plot(values)
-        self.polar3DPlotCanvas.plot(values)
-        self.polar3DSpherePlotCanvas.plot(values)
+        self.plotThread.updateSquarePlot(values)
 
     @pyqtSlot()
     def startMeasurement(self):
         if arduinoPort.isOpen():
             arduinoPort.write(b'{Start}')
+            self.isMeasurementRunning = not self.isMeasurementRunning
 
 #=========== GLOBAL METHODS
 def getArduinoPort():
