@@ -151,13 +151,12 @@ class DataTransferThread(QThread):
 
 #=========== PLOT CANVAS
 class PlotThread(QThread):
-    def __init__(self, linearPlotView, squarePlotView, polarPlotView, polar3DPlotView, polar3DSpherePlotView):
+    def __init__(self, linearPlotView, squarePlotView, polarPlotView, polar3DPlotView):
         QThread.__init__(self)
         self.linearPlotCanvas = LinearPlotCanvas(linearPlotView)
         self.squarePlotCanvas = SquarePlotCanvas(squarePlotView)
         self.polarPlotCanvas = PolarPlotCanvas(polarPlotView)
         self.polar3DPlotCanvas = Polar3DPlotCanvas(polar3DPlotView)
-        self.polar3DSpherePlotCanvas = Polar3DSpherePlotCanvas(polar3DSpherePlotView)
 
     def __del__(self):
         self.wait()
@@ -172,7 +171,6 @@ class PlotThread(QThread):
         self.squarePlotCanvas.plot(values)
         self.polarPlotCanvas.plot(values)
         self.polar3DPlotCanvas.plot(values)
-        self.polar3DSpherePlotCanvas.plot(values)
 
 
 class LinearPlotCanvas(FigureCanvas):
@@ -250,32 +248,6 @@ class Polar3DPlotCanvas(FigureCanvas):
         self.axes.plot_surface(X, Y, z,  cmap='gray', vmin=0, vmax=255)
         self.draw()
         
-class Polar3DSpherePlotCanvas(FigureCanvas):
-    def __init__(self, parent=None, width = 4.8, height = 3.8, dpi = 100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111, projection='3d')
- 
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
- 
-        FigureCanvas.setSizePolicy(self,
-                QSizePolicy.Expanding,
-                QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
-        self.axes.mouse_init()
-
-    def plot(self, data):
-        global maxA, maxB
-        self.axes.clear()
-        complexA = complex(0, int(maxA))
-        complexB = complex(0, int(maxB))
-        theta, r = np.mgrid[0:2*np.pi:complexB, 0:1:complexA]
-        X, Y = r*np.cos(theta), r*np.sin(theta)
-        z = data.reshape(theta.shape)
-        self.axes.set_zlim(0, 255)
-        self.axes.plot_surface(X, Y, z,  cmap='gray', vmin=0, vmax=255)
-        self.draw()
-
 #=========== MAIN APP
 class ApplicationWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -288,7 +260,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         
         # == thread
         self.dataThread = DataTransferThread()
-        self.plotThread = PlotThread(self.linearPlotView, self.squarePlotView, self.polarPlotView, self.polar3DPlotView, self.polar3DSpherePlotView)
+        self.plotThread = PlotThread(self.linearPlotView, self.squarePlotView, self.polarPlotView, self.polar3DPlotView)
         self.setupSignals()
         self.dataThread.start()
         self.plotThread.start()

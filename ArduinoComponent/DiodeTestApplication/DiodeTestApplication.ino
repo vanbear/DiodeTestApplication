@@ -93,10 +93,9 @@ bool calibrate()
 
 int getLightDensity()
 {
-  int valueMain = analogRead(gd::pins::LIGHT_SENSOR_MAIN);
-  int valueRef = analogRead(gd::pins::LIGHT_SENSOR_REF);
+  int valueMain = analogRead(gd::pins::LIGHT_SENSOR_MAIN); // pomiar główny
+  int valueRef = analogRead(gd::pins::LIGHT_SENSOR_REF); // pomiar referencyjny
   return map(valueMain - valueRef, 0, 1023, 0, 255);
-  // return valueMain;
 }
 
 void startMeasurement()

@@ -73,7 +73,7 @@
       <item>
        <widget class="QTabWidget" name="tabWidget">
         <property name="currentIndex">
-         <number>2</number>
+         <number>3</number>
         </property>
         <widget class="QWidget" name="tabLinearPlot">
          <attribute name="title">
@@ -112,16 +112,6 @@
          <layout class="QHBoxLayout" name="horizontalLayout_8">
           <item>
            <widget class="QGraphicsView" name="polar3DPlotView"/>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="tab3DHemisphere">
-         <attribute name="title">
-          <string>3D Hemisphere</string>
-         </attribute>
-         <layout class="QHBoxLayout" name="horizontalLayout_9">
-          <item>
-           <widget class="QGraphicsView" name="polar3DSpherePlotView"/>
           </item>
          </layout>
         </widget>
